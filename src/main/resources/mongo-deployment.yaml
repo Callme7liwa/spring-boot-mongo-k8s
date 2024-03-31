@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: mongo
+  name: mongodb-service
+spec:
+  port:
+  - port: 27017
+  selector:
+    app: mongo
+  ClusterIp: None
+  ---
+  apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: mongo-pv-claim
+    labels:
+      app: mongo
+      tier: database
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    ressources:
+      requests:
+        storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+  labels:
+    app: mongo
+spec:
+  selector:  #selector : Cela dit au système quel type de pods gérer. Par exemple, "Gérer tous les pods qui sont étiquetés comme étant une application MongoDB".
+    matchLabels:
+      app: mongo
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mongo #template : Cela décrit à quoi ressemble chaque pod que nous voulons créer. Dans ce cas, chaque pod que nous créons aura une étiquette disant "C'est une application MongoDB".
+      name: mongodb-service
+
+      
+    spec:
+      containers:
+      - image: mongo:latest
+        name: mongo
+        
+        env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mongo-secret
+                key: username
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mongo-secret
+                key: password
+                          
+                
+        ports:
+        - containerPort: 27017
+          name: mongo                
+        volumeMounts:
+        - name: mongo-persistent-storage
+          mountPath: /data/db #This is the path in the container on which the mounting will take place.
+      volumes:
+      - name: mongo-persistent-storage # Obtaining 'vloume' from PVC
+        persistentVolumeClaim:
+          claimName: mongo-pv-claim  
